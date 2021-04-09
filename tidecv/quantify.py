@@ -6,6 +6,7 @@ from . import functions as f
 from . import plotting as P
 
 from pycocotools import mask as mask_utils
+from pycocotools.coco import COCO
 from collections import defaultdict, OrderedDict
 import numpy as np
 from typing import Union
@@ -29,7 +30,13 @@ class TIDEExample:
 		preds    = self.preds
 		gt       = self.gt
 		ignore   = self.ignore_regions
-		det_type = 'bbox' if self.mode == TIDE.BOX else 'mask'
+		if self.mode == TIDE.BOX:
+			det_type = 'bbox'
+		elif self.mode == TIDE.MASK:
+			det_type = 'mask'
+		elif self.mode == 'obb':
+			det_type = 'mask'
+			mode = 'obb'
 		max_dets = self.max_dets
 
 		if len(preds) == 0:
@@ -40,15 +47,18 @@ class TIDEExample:
 		preds.sort(key=lambda pred: -pred['score'])
 		preds = preds[:max_dets]
 		self.preds = preds # Update internally so TIDERun can update itself if :max_dets takes effect
-		detections = [x[det_type] for x in preds]
+		if mode == 'obb':
+			detections = [f.toRLE(x[det_type], 512, 512) for x in preds]
+			gt_detections = [f.toRLE(x[det_type], 512, 512) for x in gt]
+		else:
+			detections = [x[det_type] for x in preds]
+			gt_detections = [x[det_type] for x in gt]
 
-		
 		# IoU is [len(detections), len(gt)]
 		self.gt_iou = mask_utils.iou(
 			detections,
-			[x[det_type] for x in gt],
+			gt_detections,
 			[False] * len(gt))
-
 		# Store whether a prediction / gt got used in their data list
 		# Note: this is set to None if ignored, keep that in mind
 		for idx, pred in enumerate(preds):
@@ -424,6 +434,7 @@ class TIDE:
 	# The modes of evaluation
 	BOX  = 'bbox'
 	MASK = 'mask'
+	OBB = 'obb'
 
 	def __init__(self, pos_threshold:float=0.5, background_threshold:float=0.1, mode:str=BOX):
 		self.pos_thresh = pos_threshold

@@ -47,7 +47,7 @@ class TIDEExample:
 		preds.sort(key=lambda pred: -pred['score'])
 		preds = preds[:max_dets]
 		self.preds = preds # Update internally so TIDERun can update itself if :max_dets takes effect
-		if mode == 'obb':
+		if self.mode == 'obb':
 			detections = [f.toRLE(x[det_type], 512, 512) for x in preds]
 			gt_detections = [f.toRLE(x[det_type], 512, 512) for x in gt]
 		else:
